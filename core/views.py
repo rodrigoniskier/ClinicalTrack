@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -37,37 +37,39 @@ def role_required(*roles):
     return decorator
 
 
+def visible_placements(user):
+    role=current_role(user)
+    qs=Placement.objects.select_related("trainee", "supervisor", "site", "period__area")
+    if role == MemberProfile.Role.ADMIN: return qs
+    if role == MemberProfile.Role.SUPERVISOR: return qs.filter(supervisor=user)
+    if role == MemberProfile.Role.TRAINEE: return qs.filter(trainee=user)
+    return qs.none()
+
 @login_required
 def dashboard(request):
-    role = current_role(request.user)
-    notices = Notice.objects.filter(active=True).filter(Q(audience="ALL") | Q(audience=role))[:5]
+    role=current_role(request.user)
+    if not role: return HttpResponseForbidden("Perfil necessário.")
+    placements=visible_placements(request.user)
+    evaluations=Evaluation.objects.filter(placement__in=placements).select_related("placement__trainee", "placement__site")
+    if role == MemberProfile.Role.TRAINEE: evaluations=evaluations.filter(shared_with_trainee=True)
+    from django.db.models import Avg
+    from .models import TrainingSite
+    avg=evaluations.aggregate(k=Avg("knowledge"),s=Avg("skills"),p=Avg("professionalism"))
+    score=round(sum(x or 0 for x in avg.values())/3,1)
+    context={"mode":role.lower(),"placements":placements[:6],"evaluations":evaluations[:4],"notices":Notice.objects.filter(active=True).filter(Q(audience="ALL")|Q(audience=role))[:2],"stats":{"placements":placements.count(),"trainees":placements.values("trainee").distinct().count(),"evaluations":evaluations.count(),"score":score},"areas":list(placements.values("period__area__name").annotate(total=Count("id")))}
+    return render(request,"dashboard.html",context)
 
-    if role == MemberProfile.Role.ADMIN:
-        placements = Placement.objects.select_related("trainee", "supervisor", "site", "period__area")[:50]
-        return render(request, "dashboard.html", {"mode": "admin", "placements": placements, "notices": notices})
+@login_required
+def placements_view(request):
+    qs=visible_placements(request.user)
+    q=request.GET.get("q","").strip()
+    if q: qs=qs.filter(Q(trainee__first_name__icontains=q)|Q(trainee__last_name__icontains=q)|Q(site__name__icontains=q))
+    return render(request,"placements.html",{"placements":qs,"mode":str(current_role(request.user)).lower()})
 
-    if role == MemberProfile.Role.SUPERVISOR:
-        placements = Placement.objects.filter(supervisor=request.user, active=True).select_related(
-            "trainee", "site", "period__area"
-        )
-        evaluations = Evaluation.objects.filter(evaluator=request.user).select_related("placement__trainee")[:8]
-        return render(request, "dashboard.html", {
-            "mode": "supervisor", "placements": placements, "evaluations": evaluations, "notices": notices
-        })
-
-    if role == MemberProfile.Role.TRAINEE:
-        placements = Placement.objects.filter(trainee=request.user).select_related(
-            "supervisor", "site", "period__area"
-        )
-        evaluations = Evaluation.objects.filter(
-            placement__trainee=request.user, shared_with_trainee=True
-        ).select_related("placement__supervisor", "placement__site")
-        return render(request, "dashboard.html", {
-            "mode": "trainee", "placements": placements, "evaluations": evaluations, "notices": notices
-        })
-
-    return HttpResponseForbidden("A ClinicalTrack role is required.")
-
+@role_required(MemberProfile.Role.ADMIN)
+def program(request):
+    from .models import RotationPeriod,TrainingSite,TrainingArea
+    return render(request,"program.html",{"periods":RotationPeriod.objects.select_related("area"),"sites":TrainingSite.objects.all(),"areas":TrainingArea.objects.all()})
 
 @role_required(MemberProfile.Role.SUPERVISOR)
 def evaluate(request, placement_id):
@@ -83,8 +85,11 @@ def evaluate(request, placement_id):
         evaluation.placement = placement
         evaluation.evaluator = request.user
         evaluation.full_clean()
+        from django.conf import settings
+        if settings.PORTFOLIO_DEMO and Evaluation.objects.count() >= 150:
+            return HttpResponseForbidden("Limite de registros da demonstração atingido.")
         evaluation.save()
-        messages.success(request, "Evaluation recorded.")
+        messages.success(request, "Avaliação registrada e disponível no acompanhamento.")
         return redirect("dashboard")
     return render(request, "evaluate.html", {"placement": placement, "form": form})
 
