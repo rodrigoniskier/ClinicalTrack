@@ -88,3 +88,18 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "31536000"))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Public portfolio deployment; keep this database isolated from production data.
+PORTFOLIO_DEMO = os.environ.get("PORTFOLIO_DEMO", "0") == "1"
+DEMO_ACCOUNTS = [('manager.demo', 'Gestor'), ('supervisor.demo', 'Supervisor'), ('trainee.demo', 'Trainee')]
+STATICFILES_DIRS = [BASE_DIR / "static"]
+MIDDLEWARE.append("portfolio_demo.DemoSafetyMiddleware")
+TEMPLATES[0]["OPTIONS"]["context_processors"].append("portfolio_demo.context")
+LANGUAGE_CODE = "pt-br"
+TIME_ZONE = "America/Fortaleza"
+DATA_UPLOAD_MAX_MEMORY_SIZE = 131072
+SESSION_COOKIE_AGE = 43200
+if os.environ.get("VERCEL"):
+    DATABASES["default"]["CONN_MAX_AGE"] = 0
+    if not os.environ.get("DATABASE_URL"):
+        raise RuntimeError("A persistent DATABASE_URL is required on Vercel")

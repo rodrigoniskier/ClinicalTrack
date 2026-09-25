@@ -1,58 +1,67 @@
 # ClinicalTrack
 
-> **Portfolio edition:** a clean, generic training-placement management platform with no institutional data or inherited repository history.
+### Gestão de estágios, práticas e formação supervisionada
 
-ClinicalTrack is designed for internships, clinical placements, residencies, apprenticeships and other supervised practical-learning programs.
+Edição pública de portfólio com dados inteiramente sintéticos. O código não depende de sistemas originais, bases institucionais ou informações pessoais.
 
-## Portfolio snapshot
+**Stack:** Django · PostgreSQL · RBAC · Workflow
 
-This project demonstrates domain modeling, role-based workflows, object-level authorization, relational data, evaluations, migrations, tests and production-oriented Django configuration.
+## O produto
 
-**Stack:** Django · PostgreSQL/SQLite · RBAC · Migrations · Tests · Gunicorn · WhiteNoise
+Dashboard por perfil; vínculos de supervisão; busca de placements; avaliação formativa; programa de formação.
 
-## Roles
+## Demonstração
 
-- **Administrator** — manages users, sites, areas, periods, placements and notices through Django Admin.
-- **Supervisor** — sees only assigned placements and records evaluations for those trainees.
-- **Trainee** — sees own placements and only evaluations explicitly shared with them.
+Ative `PORTFOLIO_DEMO=1` **somente em um banco dedicado**. O acesso é feito pelo botão da tela inicial; não há senha pública nem acesso administrativo privilegiado.
 
-## Core model
+10 trainees, 4 supervisores, 5 locais, 3 períodos, 20 placements e 40 avaliações.
 
-`TrainingArea → RotationPeriod → Placement ← TrainingSite`
+A publicação online e os testes em PostgreSQL/Vercel ainda precisam ser concluídos. Nenhuma URL de aplicação é anunciada como funcional antes dessa verificação.
 
-Each placement binds one trainee to one supervisor, site and period. Evaluation authorization is checked against that assignment on the server; changing a URL or form value cannot grant access to another supervisor's trainee.
-
-## Run locally
+## Execução local
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+export PORTFOLIO_DEMO=1
+export DEBUG=1
 python manage.py migrate
 python manage.py seed_demo
 python manage.py runserver
 ```
 
-Synthetic demo credentials created by `seed_demo`:
+Os bancos locais são ignorados pelo Git. `seed_demo` é idempotente: executá-lo novamente não duplica a base. Para restaurar uma demonstração, use um **novo banco vazio dedicado**, execute as migrations (Django) e repita a carga; não execute reset em uma base de produção.
 
-- `admin` / `Demo-Admin-12345`
-- `supervisor.demo` / `Demo-Supervisor-12345`
-- `trainee.demo` / `Demo-Trainee-12345`
+## Publicação na Vercel
 
-These are demo-only accounts and must never be used in production.
+O arquivo `vercel.json` encaminha a aplicação Python e serve os assets estáticos. Configure exclusivamente no ambiente da plataforma:
 
-## Production
+- `PORTFOLIO_DEMO=1`
+- `SECRET_KEY`: valor aleatório próprio desta implantação
+- `DATABASE_URL`: PostgreSQL dedicado, com TLS
+- `DEBUG=0`
+- `ALLOWED_HOSTS`: hostname exato da implantação
+- `CSRF_TRUSTED_ORIGINS`: origem HTTPS exata
 
-Set `DATABASE_URL` to PostgreSQL, provide a stable `SECRET_KEY`, set `DEBUG=0`, configure `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS`, and run:
+Execute a carga inicial antes de abrir a URL pública. A aplicação recusa execução na Vercel sem banco persistente e chave de sessão. Não use SQLite no filesystem temporário da hospedagem.
+
+## Limites da demo
+
+- Painel administrativo bloqueado e contas demonstrativas sem privilégios perigosos.
+- Dados de exemplo identificados como sintéticos; visitantes devem usar apenas conteúdo fictício.
+- Novos uploads bloqueados.
+- Operações de escrita limitadas; os registros-base permanecem disponíveis.
+- CSRF e headers de segurança ativos.
+- Não é um ambiente de produção nem um serviço para informações confidenciais.
+
+## Validação
 
 ```bash
-python manage.py check --deploy
-python manage.py migrate
-python manage.py collectstatic --noinput
-gunicorn clinicaltrack.wsgi:application
+python manage.py test
 ```
 
-## Origin and privacy
+Testes de autorização, CSRF, integridade dos dados demonstrativos e fluxos principais. Dependabot e GitHub Actions preservados.
 
-The private operational system that inspired this case remains separate. ClinicalTrack uses generic terminology (`trainee`, `supervisor`, `training site`, `placement`) and synthetic data, and begins with a new public Git history rather than exposing the history of the original deployment.
+Consulte [SECURITY.md](SECURITY.md). Nunca faça commit de `.env`, tokens, bancos, exports ou credenciais.

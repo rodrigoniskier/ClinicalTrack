@@ -37,3 +37,29 @@ class AuthorizationTests(TestCase):
         response = self.client.get(reverse("dashboard"))
         self.assertContains(response, "shared-feedback")
         self.assertNotContains(response, "private-feedback")
+
+from django.conf import settings
+from django.core.management import call_command
+from django.test import override_settings
+
+@override_settings(PORTFOLIO_DEMO=True)
+class PortfolioDemoTests(TestCase):
+    def setUp(self):
+        call_command("seed_demo",verbosity=0)
+    def test_seed_is_idempotent_and_has_no_privileged_account(self):
+        from django.contrib.auth.models import User
+        before=User.objects.count()
+        call_command("seed_demo",verbosity=0)
+        self.assertEqual(User.objects.count(),before)
+        self.assertFalse(User.objects.filter(is_staff=True).exists())
+        self.assertFalse(User.objects.filter(is_superuser=True).exists())
+    def test_demo_entry_and_admin_boundary(self):
+        name=settings.DEMO_ACCOUNTS[0][0]
+        self.assertEqual(self.client.post("/demo/enter/",{"account":name}).status_code,302)
+        self.assertEqual(self.client.get("/").status_code,200)
+        self.assertEqual(self.client.get("/admin/").status_code,403)
+        self.assertEqual(self.client.post("/demo/enter/",{"account":"admin"}).status_code,404)
+    def test_demo_login_requires_csrf(self):
+        from django.test import Client
+        client=Client(enforce_csrf_checks=True)
+        self.assertEqual(client.post("/demo/enter/",{"account":settings.DEMO_ACCOUNTS[0][0]}).status_code,403)

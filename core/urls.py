@@ -7,3 +7,6 @@ urlpatterns = [
     path("", dashboard, name="dashboard"),
     path("placements/<int:placement_id>/evaluate/", evaluate, name="evaluate"),
 ]
+
+from .views import placements_view, program
+urlpatterns += [path("placements/",placements_view,name="placements"),path("program/",program,name="program")]
