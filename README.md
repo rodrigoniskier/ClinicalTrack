@@ -16,7 +16,7 @@ Edição pública de portfólio com dados inteiramente sintéticos. O código n�
 
 **Tecnologias.** Python, Django, PostgreSQL, SQL, RBAC, Vercel, GitHub Actions.
 
-**Qualidade e evidências.** Demonstração publicada com dados 100% sintéticos (10 trainees, 4 supervisores, 20 placements, 40 avaliações); 5 funções de teste automatizadas; workflow de CI.
+**Qualidade e evidências.** Demonstração publicada com dados 100% sintéticos (10 trainees, 4 supervisores, 20 placements, 40 avaliações); 5 funções de teste automatizadas; workflow de CI. Licença MIT.
 
 ## O produto
 
