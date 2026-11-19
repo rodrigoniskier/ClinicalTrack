@@ -6,6 +6,18 @@ Edição pública de portfólio com dados inteiramente sintéticos. O código n�
 
 **Stack:** Django · PostgreSQL · RBAC · Workflow
 
+## Problema, público e resultado
+
+**Problema.** Coordenar estágios e práticas supervisionadas envolve locais, períodos, vínculos de supervisão e avaliações de cada estudante, com cada pessoa vendo apenas o que lhe cabe.
+
+**Para quem.** Gestores de programas de formação prática, supervisores e estudantes em estágio (trainees), cada perfil com seu próprio painel.
+
+**O que entrega.** Dashboard por perfil, vínculos de supervisão, busca de placements, avaliação formativa e programa de formação, com autorização por vínculo (controle de acesso por papel).
+
+**Tecnologias.** Python, Django, PostgreSQL, SQL, RBAC, Vercel, GitHub Actions.
+
+**Qualidade e evidências.** Demonstração publicada com dados 100% sintéticos (10 trainees, 4 supervisores, 20 placements, 40 avaliações); 5 funções de teste automatizadas; workflow de CI.
+
 ## O produto
 
 Dashboard por perfil; vínculos de supervisão; busca de placements; avaliação formativa; programa de formação.
